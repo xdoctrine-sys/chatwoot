@@ -1,0 +1,108 @@
+name: Upstream sync
+
+# Prepares a pull request that brings the latest stable Chatwoot release into
+# the production branch. It never merges and never deploys automatically: a
+# human must review the pull request and approve the Railway deployment.
+#
+# Requires GitHub Actions to be enabled on the fork.
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      target_tag:
+        description: 'Upstream tag to sync (e.g. v4.19.1). Leave empty to use the newest stable tag.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production branch
+        uses: actions/checkout@v4
+        with:
+          ref: production/railway
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/chatwoot/chatwoot.git
+
+      - name: Fetch upstream tags
+        run: git fetch --tags --force upstream
+
+      - name: Resolve target release
+        id: resolve
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.inputs.target_tag }}" ]; then
+            TAG="${{ github.event.inputs.target_tag }}"
+          else
+            TAG="$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "No stable tag found" >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "branch=sync/upstream-$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare sync branch
+        id: prepare
+        run: |
+          set +e
+          TAG="${{ steps.resolve.outputs.tag }}"
+          BRANCH="${{ steps.resolve.outputs.branch }}"
+          git config user.name "chatwoot-upstream-sync"
+          git config user.email "chatwoot-upstream-sync@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git merge "refs/tags/$TAG" --no-edit -m "chore(upstream): sync $TAG"
+          STATUS=$?
+          echo "merge-status=$STATUS" >> "$GITHUB_OUTPUT"
+          if [ "$STATUS" -ne 0 ]; then
+            git diff --name-only --diff-filter=U > conflicts.txt || true
+          fi
+          exit 0
+
+      - name: Report conflicts
+        if: steps.prepare.outputs.merge-status != '0'
+        run: |
+          echo "The automated merge of ${{ steps.resolve.outputs.tag }} produced conflicts."
+          echo "Conflicting files:"
+          cat conflicts.txt || true
+          exit 1
+
+      - name: Push sync branch
+        if: steps.prepare.outputs.merge-status == '0'
+        run: git push --force-with-lease origin "${{ steps.resolve.outputs.branch }}"
+
+      - name: Open pull request
+        if: steps.prepare.outputs.merge-status == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.resolve.outputs.tag }}"
+          BRANCH="${{ steps.resolve.outputs.branch }}"
+          EXISTING="$(gh pr list --head "$BRANCH" --json number --jq 'length')"
+          if [ "$EXISTING" != "0" ]; then
+            echo "A pull request already exists for $BRANCH"
+            exit 0
+          fi
+          gh pr create \
+            --base production/railway \
+            --head "$BRANCH" \
+            --title "chore(upstream): sync Chatwoot $TAG" \
+            --body "Automated upstream sync of **$TAG**.
+
+          Review the diff, resolve any conflicts, run the available checks, then merge and deploy manually on Railway.
+          Do not merge major releases without testing."
