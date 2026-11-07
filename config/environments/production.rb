@@ -45,6 +45,15 @@ Rails.application.configure do
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = ActiveModel::Type::Boolean.new.cast(ENV.fetch('FORCE_SSL', false))
 
+  # Exclude the platform health check endpoint from the HTTP -> HTTPS redirect.
+  # Managed platforms (Railway, etc.) probe the web process internally over plain
+  # HTTP; without this exclusion /health would answer with a 301 and the release
+  # would never be reported as healthy. SSL enforcement stays active for every
+  # other path, and secure cookies / HSTS remain enabled.
+  config.ssl_options = {
+    redirect: { exclude: ->(request) { request.path == '/health' } }
+  }
+
   # Use the lowest log level to ensure availability of diagnostic information
   # when problems arise.
   config.log_level = ENV.fetch('LOG_LEVEL', 'info').to_sym
