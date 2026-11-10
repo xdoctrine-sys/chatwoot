@@ -305,7 +305,10 @@ export const actions = {
   reauthorizeFacebookPage: async ({ commit }, params) => {
     try {
       const response = await FBChannel.reauthorizeFacebookPage(params);
-      commit(types.default.EDIT_INBOXES, response.data);
+      // The endpoint wraps the payload ({ data: inbox }), so commit the inner
+      // inbox: MutationHelpers.update matches on data.id, which is undefined on
+      // the wrapper and would leave the store (and the connect banner) unupdated.
+      commit(types.default.EDIT_INBOXES, response.data.data);
     } catch (error) {
       throw new Error(error.message);
     }

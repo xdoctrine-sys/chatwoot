@@ -1,4 +1,5 @@
 class Api::V1::Accounts::CallbacksController < Api::V1::Accounts::BaseController
+  before_action :check_admin_authorization?
   before_action :inbox, only: [:reauthorize_page]
 
   def register_facebook_page
@@ -49,6 +50,9 @@ class Api::V1::Accounts::CallbacksController < Api::V1::Accounts::BaseController
 
       if (page_detail = (page_details || []).detect { |page| fb_page_id == page['id'] })
         update_fb_page(fb_page_id, page_detail['access_token'])
+        # Reload the inbox so the response carries the freshly synced page details
+        # (including instagram_id) rather than the channel cached on the association.
+        @inbox.reload
         render and return
       end
     end

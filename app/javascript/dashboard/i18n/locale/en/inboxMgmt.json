@@ -8,6 +8,7 @@
     "NO_RESULTS": "No inboxes found matching your search",
     "RECONNECTION_REQUIRED": "Your inbox is disconnected. You won't receive new messages until you reauthorize it.",
     "CLICK_TO_RECONNECT": "Click here to reconnect.",
+    "FB_SDK_LOAD_FAILED": "We couldn't load the Facebook SDK. Please disable any ad-blockers, then reload this page and try again.",
     "WHATSAPP_REGISTRATION_INCOMPLETE": "Your WhatsApp Business registration isn’t complete. Please check your display name status in Meta Business Manager before reconnecting.",
     "COMPLETE_REGISTRATION": "Complete Registration",
     "LIST": {
@@ -1351,6 +1352,10 @@
       "SUBTITLE": "Your Facebook connection has expired, please reconnect your Facebook page to continue services",
       "MESSAGE_SUCCESS": "Reconnection successful",
       "MESSAGE_ERROR": "There was an error, please try again"
+    },
+    "FACEBOOK_INSTAGRAM": {
+      "CONNECT_ACTION": "Connect Instagram",
+      "CONNECT_DESCRIPTION": "Connect the Instagram account linked to this Facebook page so Instagram conversations arrive in this inbox."
     },
     "PRE_CHAT_FORM": {
       "DESCRIPTION": "Pre chat forms enable you to capture user information before they start conversation with you.",

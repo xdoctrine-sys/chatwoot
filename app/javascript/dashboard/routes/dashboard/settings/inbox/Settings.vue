@@ -130,6 +130,7 @@ export default {
   computed: {
     ...mapGetters({
       accountId: 'getCurrentAccountId',
+      currentRole: 'getCurrentRole',
       isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
       isOnChatwootCloud: 'globalConfig/isOnChatwootCloud',
       isMetaMessageSendingDisabled: 'globalConfig/isMetaMessageSendingDisabled',
@@ -391,6 +392,16 @@ export default {
     },
     facebookUnauthorized() {
       return this.isAFacebookInbox && this.inbox.reauthorization_required;
+    },
+    // Explicit, administrator-only Instagram link for a connected Facebook page
+    // inbox that is not linked to an Instagram account yet.
+    facebookInstagramLinkAvailable() {
+      return (
+        this.isAFacebookInbox &&
+        this.currentRole === 'administrator' &&
+        !this.inbox.reauthorization_required &&
+        !this.inbox.instagram_id
+      );
     },
     googleUnauthorized() {
       const isLegacyInbox = ['imap.gmail.com', 'imap.google.com'].includes(
@@ -814,6 +825,13 @@ export default {
         <FacebookReauthorize
           v-if="facebookUnauthorized"
           :inbox="inbox"
+          class="mb-4"
+          :class="bannerMaxWidth"
+        />
+        <FacebookReauthorize
+          v-if="facebookInstagramLinkAvailable"
+          :inbox="inbox"
+          connect-instagram-account
           class="mb-4"
           :class="bannerMaxWidth"
         />
